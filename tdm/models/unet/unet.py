@@ -9,8 +9,6 @@ class ConvBlock(nn.Sequential):
             nn.ReLU(),
             nn.Conv2d(out_channels, out_channels, 3),
             nn.ReLU(),
-            nn.Conv2d(out_channels, out_channels, 3),
-            nn.ReLU()
         ]
         super().__init__(*layers)
 
