@@ -19,15 +19,6 @@ class ContractingBlock(nn.Sequential):
         super().__init__(*layers)
 
 
-class UpConv(nn.Sequential):
-    def __init__(self, in_channels, out_channels):
-        layers = [
-            nn.Upsample(scale_factor=2),
-            nn.Conv2d(in_channels, out_channels, 2)
-        ]
-        super().__init__(*layers)
-
-
 class ExpansiveBlock(nn.Module):
     def __init__(self, in_channels, out_channels):
         super().__init__()

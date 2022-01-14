@@ -24,13 +24,13 @@ def parse_args():
 def main():
     args = parse_args()
     train_image_transform = transforms.Compose([
-        transforms.Resize((256, 256)),
-        transforms.Pad((5 * 2**5) // 2, padding_mode='reflect'),
-        transforms.ToTensor(),
+        transforms.Resize((244, 244)),
+        transforms.Pad(92, padding_mode='reflect'),
+        transforms.ToTensor()
     ])
     train_target_transform = transforms.Compose([
-        transforms.Resize((256, 256)),
-        transforms.ToTensor(),
+        transforms.Resize((244, 244)),
+        transforms.ToTensor()
     ])
     train_dataset = VOCSegmentation(root=args.data_dir,
                                     image_set='train',
@@ -44,10 +44,13 @@ def main():
                                   num_workers=0)
     model = UNet(in_channels=3, n_classes=20)
     sample_imgs, sample_masks = next(iter(train_dataloader))
+    sample_masks = sample_masks.long().squeeze()
     sample_out = model(sample_imgs)
-    print(sample_imgs.shape)
+    loss_fn = nn.CrossEntropyLoss()
     print(sample_out.shape)
     print(sample_masks.shape)
+    loss = loss_fn(sample_out, sample_masks.squeeze())
+    print(loss.data.numpy())
 
 
 if __name__ == '__main__':
