@@ -6,6 +6,7 @@ import urllib
 import requests
 import torch
 from torch.utils.data import Dataset
+from tqdm import tqdm
 
 
 class OxfordPetDataset(Dataset):
@@ -29,10 +30,7 @@ class OxfordPetDataset(Dataset):
         self._masks_path = os.path.join(self.root, 'annotations')
 
         if self.download:
-            self._download()
-        else:
-            self._chech_and_extract(self._imgs_path, self._imgs_md5)
-            self._chech_and_extract(self._masks_path, self._masks_md5)
+            self._download_dataset()
 
     def __len__(self):
         pass
@@ -40,25 +38,39 @@ class OxfordPetDataset(Dataset):
     def __getitem__(self, idx):
         pass
 
-    def _download(self):
+    def _download_dataset(self):
         if not os.path.exists(self.root):
             os.makedirs(self.root)
 
-        self._download_tar(self._imgs_url, self._imgs_tar_path, self._imgs_md5)
-        self._download_tar(self._masks_url, self._masks_path, self._masks_md5)
+        self._download_url(self._imgs_url, self._imgs_tar_path)
+        self._check_and_extract_tar(self._imgs_tar_path, self._imgs_md5)
+        self._download_url(self._masks_url, self._masks_tar_path)
+        self._check_and_extract_tar(self._masks_tar_path, self._masks_md5)
 
-    def _download_tar(self, tar_url, tar_path, tar_md5):
-        if os.path.exists(tar_path) and os.path.isfile(tar_path):
-            print(f"Found existing tar file at {tar_path}")
+    def _pb_update_hook(self, pb):
+        def update_to(b=1, bsize=1, tsize=None):
+            if tsize is not None:
+                pb.total = tsize
+            pb.update(b * bsize - pb.n)
 
+        return update_to
+
+    def _download_url(self, url, path):
+        if os.path.exists(path) and os.path.isfile(path):
+            print(f"Found existing tar file at {path}")
         else:
-            urllib.request.urlretrieve(tar_url, tar_path)
+            with tqdm(unit='B',
+                      unit_scale=True,
+                      unit_divisor=1024,
+                      miniters=1,
+                      desc=path) as pb:
+                urllib.request.urlretrieve(url,
+                                           path,
+                                           reporthook=self._pb_update_hook(pb))
 
-        self._chech_and_extract(tar_path, tar_md5)
-
-    def _check_integrity(self, tar_path, ref_md5):
+    def _check_integrity(self, file_path, ref_md5):
         md5_hash = hashlib.md5()
-        with open(tar_path, 'rb') as f:
+        with open(file_path, 'rb') as f:
             md5_hash.update(f.read())
             md5 = md5_hash.hexdigest()
             if md5 != ref_md5:
@@ -66,16 +78,20 @@ class OxfordPetDataset(Dataset):
             else:
                 return True
 
-    def _extract_tar(self, tar_path):
-        with tarfile.open(tar_path, 'r:gz') as f:
-            f.extractall()
+    def _extract_tar(self, tar_path, extraction_path=None):
+        if not extraction_path:
+            extraction_path = self.root
 
-    def _chech_and_extract(self, tar_path, ref_md5):
+        with tarfile.open(tar_path, 'r:gz') as f:
+            f.extractall(path=extraction_path)
+
+    def _check_and_extract_tar(self, tar_path, ref_md5, extraction_path=None):
         if self._check_integrity(tar_path, ref_md5):
             print(f'Extracting to {self.root}')
-            self._extract_tar(tar_path)
+            self._extract_tar(tar_path, extraction_path)
         else:
             raise RuntimeError(f"Hash mismatch for {tar_path}")
 
+
 if __name__ == "__main__":
-    dataset = OxfordPetDataset("./", True)
+    dataset = OxfordPetDataset("./data/", True)
