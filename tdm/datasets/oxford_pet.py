@@ -32,10 +32,16 @@ class OxfordPetDataset(Dataset):
         if self.download:
             self._download_dataset()
 
+        self._check_and_extract_tar(self._imgs_tar_path, self._imgs_md5)
+        self._check_and_extract_tar(self._masks_tar_path, self._masks_md5)
+
     def __len__(self):
         pass
 
     def __getitem__(self, idx):
+        pass
+
+    def _preprocess_mask(self, mask):
         pass
 
     def _download_dataset(self):
@@ -43,9 +49,7 @@ class OxfordPetDataset(Dataset):
             os.makedirs(self.root)
 
         self._download_url(self._imgs_url, self._imgs_tar_path)
-        self._check_and_extract_tar(self._imgs_tar_path, self._imgs_md5)
         self._download_url(self._masks_url, self._masks_tar_path)
-        self._check_and_extract_tar(self._masks_tar_path, self._masks_md5)
 
     def _pb_update_hook(self, pb):
         def update_to(b=1, bsize=1, tsize=None):
