@@ -3,8 +3,7 @@ import os
 import tarfile
 import urllib
 
-import requests
-import torch
+from PIL import Image, UnidentifiedImageError
 from torch.utils.data import Dataset
 from tqdm import tqdm
 
@@ -19,32 +18,59 @@ class OxfordPetDataset(Dataset):
     _masks_url = "https://www.robots.ox.ac.uk/~vgg/data/pets/data/annotations.tar.gz"
     _masks_md5 = "95a8c909bbe2e81eed6a22bccdf3f68f"
 
-    def __init__(self, root, download=True):
+    def __init__(self,
+                 root,
+                 transform=None,
+                 target_transform=None,
+                 download=True):
         self.root = root
+        self.transform = transform
+        self.target_transform = target_transform
         self.download = download
         self._imgs_tar_path = os.path.join(self.root,
                                            self._imgs_url.split('/')[-1])
         self._masks_tar_path = os.path.join(self.root,
                                             self._masks_url.split('/')[-1])
         self._imgs_path = os.path.join(self.root, 'images')
-        self._masks_path = os.path.join(self.root, 'annotations')
+        self._masks_path = os.path.join(self.root, 'annotations', 'trimaps')
 
         if self.download:
-            self._download_dataset()
+            self._download_data()
 
         self._check_and_extract_tar(self._imgs_tar_path, self._imgs_md5)
         self._check_and_extract_tar(self._masks_tar_path, self._masks_md5)
 
+        self.filenames = []
+        for fname in os.listdir(self._imgs_path):
+            name, ext = os.path.splitext(fname)
+            try:
+                img = Image.open(os.path.join(self._imgs_path, fname))
+
+                mask = Image.open(os.path.join(self._masks_path,
+                                               name + '.png'))
+                img.close()
+                mask.close()
+
+            except UnidentifiedImageError:
+                continue
+
+            self.filenames.append(name)
+
     def __len__(self):
-        pass
+        return len(self.filenames)
 
     def __getitem__(self, idx):
-        pass
+        fname = self.filenames[idx]
+        img = Image.open(os.path.join(self._imgs_path, fname + '.jpg'))
+        mask = Image.open(os.path.join(self._masks_path, fname + '.png'))
+        if self.transform:
+            img = self.transform(img)
+        if self.target_transform:
+            mask = self.target_transform(mask)
 
-    def _preprocess_mask(self, mask):
-        pass
+        return img, mask
 
-    def _download_dataset(self):
+    def _download_data(self):
         if not os.path.exists(self.root):
             os.makedirs(self.root)
 
@@ -76,11 +102,9 @@ class OxfordPetDataset(Dataset):
         md5_hash = hashlib.md5()
         with open(file_path, 'rb') as f:
             md5_hash.update(f.read())
-            md5 = md5_hash.hexdigest()
-            if md5 != ref_md5:
-                return False
-            else:
-                return True
+            file_md5 = md5_hash.hexdigest()
+
+        return file_md5 == ref_md5
 
     def _extract_tar(self, tar_path, extraction_path=None):
         if not extraction_path:
@@ -95,7 +119,3 @@ class OxfordPetDataset(Dataset):
             self._extract_tar(tar_path, extraction_path)
         else:
             raise RuntimeError(f"Hash mismatch for {tar_path}")
-
-
-if __name__ == "__main__":
-    dataset = OxfordPetDataset("./data/", True)
