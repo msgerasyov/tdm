@@ -1,34 +1,32 @@
 import unittest
 
 import torch
-
 from tdm import models
 
 
 class TestUnet(unittest.TestCase):
+    def setUp(self):
+        self.batch_size = 4
+        self.n_classes = 2
+        self.X = torch.randn((self.batch_size, 1, 572, 572))
+        self.y = torch.randint(low=0,
+                               high=self.n_classes,
+                               size=(self.batch_size, 388, 388))
+        self.model = models.UNet(1, self.n_classes)
+
     def test_forward(self):
-        X, y = _generate_sample_batch(16, 2)
-        model = models.UNet(1, 2)
         with torch.no_grad():
-            out = model(X)
+            out = self.model(self.X)
             pred = torch.softmax(out, dim=1).argmax(dim=1)
-        self.assertEqual(y.shape, pred.shape)
+        self.assertSequenceEqual(self.y.shape, pred.shape, seq_type=torch.Size)
 
     def test_backward(self):
-        X, y = _generate_sample_batch(16)
-        model = models.UNet(1, 2)
         loss_function = torch.nn.CrossEntropyLoss()
-        out = model(X)
-        loss = loss_function(out, y)
+        out = self.model(self.X)
+        loss = loss_function(out, self.y)
         loss.backward()
         has_nan = torch.isnan(loss).any().data.numpy()
         self.assertFalse(has_nan)
-
-
-def _generate_sample_batch(batch_size=16, n_classes=2):
-    X = torch.randn((batch_size, 1, 572, 572))
-    y = torch.randint(low=0, high=n_classes, size=(batch_size, 388, 388))
-    return X, y
 
 
 if __name__ == "__main__":
