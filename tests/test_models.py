@@ -7,12 +7,12 @@ from tdm import models
 class TestUnet(unittest.TestCase):
     def setUp(self):
         self.batch_size = 4
-        self.n_classes = 2
+        self.n_categories = 3
         self.X = torch.randn((self.batch_size, 1, 572, 572))
         self.y = torch.randint(low=0,
-                               high=self.n_classes,
+                               high=self.n_categories + 1,
                                size=(self.batch_size, 388, 388))
-        self.model = models.UNet(1, self.n_classes)
+        self.model = models.UNet(1, self.n_categories + 1)
 
     def test_forward(self):
         with torch.no_grad():
