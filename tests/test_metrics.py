@@ -26,16 +26,19 @@ class TestDiceScore(unittest.TestCase):
 
     def test_binary(self):
         score = metrics.dice_score(self.y_true_binary,
-                                   self.y_pred_binary).data.numpy()
+                                   self.y_pred_binary,
+                                   from_logits=False).data.numpy()
         with self.subTest():
             self.assertGreaterEqual(score, 0)
         with self.subTest():
             self.assertLessEqual(score, 1)
 
     def test_multiclass(self):
-        score = metrics.dice_score(self.y_true_multiclass,
-                                   self.y_pred_multiclass,
-                                   n_categories=self.n_categories).data.numpy()
+        score = metrics.dice_score(
+            self.y_true_multiclass,
+            self.y_pred_multiclass,
+            from_logits=False,
+            n_categories=self.n_categories).data.numpy()
         with self.subTest():
             self.assertGreaterEqual(score, 0)
         with self.subTest():

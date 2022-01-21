@@ -3,16 +3,17 @@ import argparse
 import numpy as np
 import torch
 import torch.nn as nn
+from tdm.datasets import OxfordPetDataset
 from tdm.models import UNet
+from tdm.utils.metrics import dice_score
 from torch.utils.data import DataLoader
 from torchvision import transforms
-from torchvision.datasets import VOCSegmentation
 from tqdm import tqdm
 
 
 def parse_args():
     parser = argparse.ArgumentParser(
-        description='Train UNet on Pascal VOC dataset')
+        description='Train UNet on Oxford-IIIT Pet Dataset')
     parser.add_argument('--batch-size', default=8, metavar='BS', type=int)
     parser.add_argument('--data-dir',
                         default='./data/',
@@ -36,7 +37,13 @@ def parse_args():
     return parser.parse_args()
 
 
-def train_one_epoch(model, opt, loader, loss_fn, device, metrics=[]):
+def train_one_epoch(model,
+                    opt,
+                    loader,
+                    loss_fn,
+                    device,
+                    metric=None,
+                    metric_name=None):
     losses = []
     progress = tqdm(enumerate(loader), total=len(loader))
     for idx, batch in progress:
@@ -48,12 +55,17 @@ def train_one_epoch(model, opt, loader, loss_fn, device, metrics=[]):
         opt.step()
         opt.zero_grad()
         losses.append(loss.cpu().data.numpy())
-        progress.set_description(f"Loss: {loss}")
+        if metric is not None:
+            metric_value = metric(masks, out, from_logits=True)
+            progress.set_description(
+                f"Train loss: {loss}, {metric_name}: {metric_value}")
+        else:
+            progress.set_description(f"Train loss: {loss}")
 
     return np.mean(losses)
 
 
-def validate(model, loader, loss_fn, device, metrics=[]):
+def validate(model, loader, loss_fn, device, metric=None, metric_name=None):
     losses = []
     progress = tqdm(enumerate(loader), total=len(loader))
     with torch.no_grad():
@@ -63,56 +75,75 @@ def validate(model, loader, loss_fn, device, metrics=[]):
             out = model(imgs)
             loss = loss_fn(out, masks)
             losses.append(loss.cpu().data.numpy())
-            progress.set_description(f"Loss: {loss}")
+            if metric is not None:
+                metric_value = metric(masks, out, from_logits=True)
+                progress.set_description(
+                    f"Val loss: {loss}, {metric_name}: {metric_value}")
+            else:
+                progress.set_description(f"Val loss: {loss}")
 
     return np.mean(losses)
 
 
+class PreprocessMask(object):
+    def __call__(self, mask: torch.Tensor):
+        mask[mask == 2.0] = 0.0
+        mask[mask == 3.0] = 1.0
+        return mask
+
+
 def main():
     args = parse_args()
-    train_image_transform = transforms.Compose([
+    image_transform = transforms.Compose([
         transforms.Resize((244, 244)),
         transforms.Pad(92, padding_mode='reflect'),
         transforms.ToTensor()
     ])
-    train_target_transform = transforms.Compose(
-        [transforms.Resize((244, 244)),
-         transforms.ToTensor()])
-    val_image_transform = train_image_transform
-    val_target_trasfrom = train_target_transform
-    train_dataset = VOCSegmentation(root=args.data_dir,
-                                    image_set='train',
-                                    download=True,
-                                    transform=train_image_transform,
-                                    target_transform=train_target_transform)
-    val_dataset = VOCSegmentation(root=args.data_dir,
-                                  image_set='val',
-                                  download=False,
-                                  transform=val_image_transform,
-                                  target_transform=val_target_trasfrom)
-
+    target_transform = transforms.Compose([
+        transforms.ToTensor(),
+        PreprocessMask(),
+        transforms.Resize((244, 244)),
+    ])
+    dataset = OxfordPetDataset(root=args.data_dir,
+                               download=True,
+                               transform=image_transform,
+                               target_transform=target_transform)
+    val_size = int(len(dataset) * 0.25)
+    train_dataset, val_dataset = torch.utils.data.random_split(
+        dataset, lengths=(len(dataset) - val_size, val_size))
     train_dataloader = DataLoader(train_dataset,
                                   batch_size=args.batch_size,
                                   shuffle=True,
                                   drop_last=True,
                                   num_workers=0)
-
     val_dataloader = DataLoader(val_dataset,
                                 batch_size=args.batch_size * 2,
                                 shuffle=False,
                                 drop_last=False,
                                 num_workers=0)
-
-    model = UNet(in_channels=3, n_classes=20)
-    loss_fn = nn.CrossEntropyLoss()
+    model = UNet(in_channels=3, out_channels=1)
+    loss_fn = nn.BCEWithLogitsLoss()
     opt = torch.optim.Adam(model.parameters(), lr=args.lr)
     device = 'cuda' if torch.cuda.is_available() and args.cuda else 'cpu'
     model.to(device)
+    import IPython
+    IPython.embed()
+    exit(1)
     for epoch in range(args.n_epochs):
         print(f"Epoch: {epoch}/{args.n_epochs-1}")
-        train_loss = train_one_epoch(model, opt, train_dataloader, loss_fn,
-                                     device)
-        val_loss = validate(model, val_dataloader, loss_fn, device)
+        train_loss = train_one_epoch(model,
+                                     opt,
+                                     train_dataloader,
+                                     loss_fn,
+                                     device,
+                                     metric=dice_score,
+                                     metric_name='Dice score')
+        val_loss = validate(model,
+                            val_dataloader,
+                            loss_fn,
+                            device,
+                            metric=dice_score,
+                            metric_name='Dice score')
 
 
 if __name__ == '__main__':

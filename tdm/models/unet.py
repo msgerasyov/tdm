@@ -37,7 +37,7 @@ class ExpansiveBlock(nn.Module):
 
 
 class UNet(nn.Module):
-    def __init__(self, in_channels, n_classes, hid_size=64):
+    def __init__(self, in_channels, out_channels, hid_size=64):
         super().__init__()
         self.cblock0 = ConvBlock(in_channels, hid_size)
         self.cblock1 = ContractingBlock(hid_size, hid_size * 2)
@@ -48,7 +48,7 @@ class UNet(nn.Module):
         self.eblock2 = ExpansiveBlock(hid_size * 8, hid_size * 4)
         self.eblock1 = ExpansiveBlock(hid_size * 4, hid_size * 2)
         self.eblock0 = ExpansiveBlock(hid_size * 2, hid_size)
-        self.head = nn.Conv2d(hid_size, n_classes, 1)
+        self.head = nn.Conv2d(hid_size, out_channels, 1)
 
     def forward(self, x):
         h_c0 = self.cblock0(x)
