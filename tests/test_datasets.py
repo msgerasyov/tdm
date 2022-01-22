@@ -21,14 +21,13 @@ class TestOxfordPetDataset(unittest.TestCase):
             transforms.Resize((self.img_size, self.img_size)),
             transforms.ToTensor()
         ])
-        self.dataset = datasets.OxfordPetDataset(
-            root=self.root_dir,
-            transform=self.transform,
-            target_transform=self.transform,
-            download=True)
 
-    def test_dataloader(self):
-        dataloader = DataLoader(dataset=self.dataset,
+    def test_loading_data(self):
+        dataset = datasets.OxfordPetDataset(root=self.root_dir,
+                                            transform=self.transform,
+                                            target_transform=self.transform,
+                                            download=True)
+        dataloader = DataLoader(dataset=dataset,
                                 batch_size=self.batch_size,
                                 shuffle=True,
                                 drop_last=True)
@@ -41,10 +40,13 @@ class TestOxfordPetDataset(unittest.TestCase):
                 (self.batch_size, 3, self.img_size, self.img_size),
             )
         with self.subTest():
-            self.assertSequenceEqual(
+            self.assertTupleEqual(
                 tuple(sample_masks.shape),
                 (self.batch_size, 1, self.img_size, self.img_size),
             )
+        with self.subTest():
+            self.assertSequenceEqual(torch.unique(sample_masks),
+                                     (1.0, 2.0, 3.0))
 
     def tearDown(self):
         # From https://docs.python.org/3/library/os.html
