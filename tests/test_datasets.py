@@ -1,10 +1,17 @@
 import os
 import unittest
 
+import numpy as np
 import torch
 from tdm import datasets
 from torch.utils.data import DataLoader
 from torchvision import transforms
+
+
+class MaskToTensor(object):
+    def __call__(self, mask):
+        mask = torch.as_tensor(np.array(mask), dtype=torch.long)
+        return mask
 
 
 class TestOxfordPetDataset(unittest.TestCase):
@@ -17,16 +24,23 @@ class TestOxfordPetDataset(unittest.TestCase):
                 self.root_dir), 'Root directory contains files'
         self.img_size = 256
         self.batch_size = 4
-        self.transform = transforms.Compose([
+        self.img_transform = transforms.Compose([
             transforms.Resize((self.img_size, self.img_size)),
             transforms.ToTensor()
         ])
+        self.target_transform = transforms.Compose([
+            transforms.Resize(
+                (self.img_size, self.img_size),
+                interpolation=transforms.InterpolationMode.NEAREST),
+            MaskToTensor()
+        ])
 
     def test_loading_data(self):
-        dataset = datasets.OxfordPetDataset(root=self.root_dir,
-                                            transform=self.transform,
-                                            target_transform=self.transform,
-                                            download=True)
+        dataset = datasets.OxfordPetDataset(
+            root=self.root_dir,
+            transform=self.img_transform,
+            target_transform=self.target_transform,
+            download=True)
         dataloader = DataLoader(dataset=dataset,
                                 batch_size=self.batch_size,
                                 shuffle=True,
@@ -42,11 +56,10 @@ class TestOxfordPetDataset(unittest.TestCase):
         with self.subTest():
             self.assertTupleEqual(
                 tuple(sample_masks.shape),
-                (self.batch_size, 1, self.img_size, self.img_size),
+                (self.batch_size, self.img_size, self.img_size),
             )
         with self.subTest():
-            self.assertSequenceEqual(torch.unique(sample_masks),
-                                     (1.0, 2.0, 3.0))
+            self.assertSequenceEqual(torch.unique(sample_masks), (1, 2, 3))
 
     def tearDown(self):
         # From https://docs.python.org/3/library/os.html

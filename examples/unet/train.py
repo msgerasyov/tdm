@@ -48,8 +48,8 @@ def train_one_epoch(model,
     progress = tqdm(enumerate(loader), total=len(loader))
     for idx, batch in progress:
         imgs = batch[0].to(device)
-        masks = batch[1].long().squeeze().to(device)
-        out = model(imgs)
+        masks = batch[1].to(device)
+        out = model(imgs).squeeze(1)
         loss = loss_fn(out, masks)
         loss.backward()
         opt.step()
@@ -58,9 +58,9 @@ def train_one_epoch(model,
         if metric is not None:
             metric_value = metric(masks, out, from_logits=True)
             progress.set_description(
-                f"Train loss: {loss}, {metric_name}: {metric_value}")
+                f"Train loss: {loss:.4f}, {metric_name}: {metric_value:.4f}")
         else:
-            progress.set_description(f"Train loss: {loss}")
+            progress.set_description(f"Train loss: {loss:.4f}")
 
     return np.mean(losses)
 
@@ -71,18 +71,24 @@ def validate(model, loader, loss_fn, device, metric=None, metric_name=None):
     with torch.no_grad():
         for idx, batch in progress:
             imgs = batch[0].to(device)
-            masks = batch[1].long().squeeze().to(device)
-            out = model(imgs)
+            masks = batch[1].to(device)
+            out = model(imgs).squeeze(1)
             loss = loss_fn(out, masks)
             losses.append(loss.cpu().data.numpy())
             if metric is not None:
                 metric_value = metric(masks, out, from_logits=True)
                 progress.set_description(
-                    f"Val loss: {loss}, {metric_name}: {metric_value}")
+                    f"Val loss: {loss:.4f}, {metric_name}: {metric_value:.4f}")
             else:
-                progress.set_description(f"Val loss: {loss}")
+                progress.set_description(f"Val loss: {loss:.4f}")
 
     return np.mean(losses)
+
+
+class MaskToTensor(object):
+    def __call__(self, mask):
+        mask = torch.as_tensor(np.array(mask), dtype=torch.float)
+        return mask
 
 
 class PreprocessMask(object):
@@ -100,9 +106,10 @@ def main():
         transforms.ToTensor()
     ])
     target_transform = transforms.Compose([
-        transforms.ToTensor(),
-        PreprocessMask(),
-        transforms.Resize((244, 244)),
+        transforms.Resize((244, 244),
+                          interpolation=transforms.InterpolationMode.NEAREST),
+        MaskToTensor(),
+        PreprocessMask()
     ])
     dataset = OxfordPetDataset(root=args.data_dir,
                                download=True,
@@ -126,9 +133,6 @@ def main():
     opt = torch.optim.Adam(model.parameters(), lr=args.lr)
     device = 'cuda' if torch.cuda.is_available() and args.cuda else 'cpu'
     model.to(device)
-    import IPython
-    IPython.embed()
-    exit(1)
     for epoch in range(args.n_epochs):
         print(f"Epoch: {epoch}/{args.n_epochs-1}")
         train_loss = train_one_epoch(model,
