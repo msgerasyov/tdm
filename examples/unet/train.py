@@ -56,7 +56,8 @@ def train_one_epoch(model,
         opt.zero_grad()
         losses.append(loss.cpu().data.numpy())
         if metric is not None:
-            metric_value = metric(masks, out, from_logits=True)
+            metric_value = metric(masks, out,
+                                  from_logits=True).cpu().data.numpy()
             progress.set_description(
                 f"Train loss: {loss:.4f}, {metric_name}: {metric_value:.4f}")
         else:
@@ -76,7 +77,8 @@ def validate(model, loader, loss_fn, device, metric=None, metric_name=None):
             loss = loss_fn(out, masks)
             losses.append(loss.cpu().data.numpy())
             if metric is not None:
-                metric_value = metric(masks, out, from_logits=True)
+                metric_value = metric(masks, out,
+                                      from_logits=True).cpu().data.numpy()
                 progress.set_description(
                     f"Val loss: {loss:.4f}, {metric_name}: {metric_value:.4f}")
             else:
