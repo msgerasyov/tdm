@@ -63,7 +63,8 @@ class OxfordPetDataset(Dataset):
 
     def __getitem__(self, idx):
         fname = self.filenames[idx]
-        img = Image.open(os.path.join(self._imgs_path, fname + '.jpg'))
+        img = Image.open(os.path.join(self._imgs_path,
+                                      fname + '.jpg')).convert('RGB')
         mask = Image.open(os.path.join(self._masks_path,
                                        fname + '.png')).convert('I')
         if self.transform:
