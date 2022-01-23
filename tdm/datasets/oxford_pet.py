@@ -44,10 +44,12 @@ class OxfordPetDataset(Dataset):
         for fname in os.listdir(self._imgs_path):
             name, ext = os.path.splitext(fname)
             try:
-                img = Image.open(os.path.join(self._imgs_path, fname))
+                img = Image.open(os.path.join(self._imgs_path,
+                                              fname)).convert('RGB')
 
                 mask = Image.open(os.path.join(self._masks_path,
                                                name + '.png')).convert('I')
+
                 img.close()
                 mask.close()
 
