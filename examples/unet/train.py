@@ -102,13 +102,11 @@ class PreprocessMask(object):
 
 def main():
     args = parse_args()
-    image_transform = transforms.Compose([
-        transforms.Resize((244, 244)),
-        transforms.Pad(92, padding_mode='reflect'),
-        transforms.ToTensor()
-    ])
+    image_transform = transforms.Compose(
+        [transforms.Resize((256, 256)),
+         transforms.ToTensor()])
     target_transform = transforms.Compose([
-        transforms.Resize((244, 244),
+        transforms.Resize((256, 256),
                           interpolation=transforms.InterpolationMode.NEAREST),
         MaskToTensor(),
         PreprocessMask()
@@ -144,12 +142,14 @@ def main():
                                      device,
                                      metric=dice_score,
                                      metric_name='Dice score')
+        print('Average train loss:', train_loss)
         val_loss = validate(model,
                             val_dataloader,
                             loss_fn,
                             device,
                             metric=dice_score,
                             metric_name='Dice score')
+        print('Average validation loss:', val_loss)
 
 
 if __name__ == '__main__':

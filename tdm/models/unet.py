@@ -5,9 +5,9 @@ import torch.nn as nn
 class ConvBlock(nn.Sequential):
     def __init__(self, in_channels, out_channels):
         layers = [
-            nn.Conv2d(in_channels, out_channels, 3),
+            nn.Conv2d(in_channels, out_channels, 3, padding=1),
             nn.ReLU(),
-            nn.Conv2d(out_channels, out_channels, 3),
+            nn.Conv2d(out_channels, out_channels, 3, padding=1),
             nn.ReLU(),
         ]
         super().__init__(*layers)
@@ -27,11 +27,7 @@ class ExpansiveBlock(nn.Module):
 
     def forward(self, x_e, x_c):
         h_e = self.upconv(x_e)
-        diff_h = x_c.size(2) - h_e.size(2)
-        diff_w = x_c.size(3) - h_e.size(3)
-        x_c_cropped = x_c[:, :, diff_h // 2:-diff_h // 2,
-                          diff_w // 2:-diff_w // 2]
-        x = torch.cat([x_c_cropped, h_e], dim=1)
+        x = torch.cat([x_c, h_e], dim=1)
         h = self.convblock(x)
         return h
 
