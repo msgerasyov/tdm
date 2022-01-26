@@ -6,8 +6,10 @@ class ConvBlock(nn.Sequential):
     def __init__(self, in_channels, out_channels):
         layers = [
             nn.Conv2d(in_channels, out_channels, 3, padding=1),
+            nn.BatchNorm2d(out_channels),
             nn.ReLU(),
             nn.Conv2d(out_channels, out_channels, 3, padding=1),
+            nn.BatchNorm2d(out_channels),
             nn.ReLU(),
         ]
         super().__init__(*layers)

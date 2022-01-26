@@ -44,6 +44,7 @@ def train_one_epoch(model,
                     device,
                     metric=None,
                     metric_name=None):
+    model.train()
     losses = []
     progress = tqdm(enumerate(loader), total=len(loader))
     for idx, batch in progress:
@@ -67,6 +68,7 @@ def train_one_epoch(model,
 
 
 def validate(model, loader, loss_fn, device, metric=None, metric_name=None):
+    model.eval()
     losses = []
     progress = tqdm(enumerate(loader), total=len(loader))
     with torch.no_grad():
