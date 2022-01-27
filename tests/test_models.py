@@ -8,11 +8,14 @@ class TestUnet(unittest.TestCase):
     def setUp(self):
         self.batch_size = 4
         self.n_categories = 3
-        self.X = torch.randn((self.batch_size, 1, 572, 572))
+        self.img_size = 256
+        self.X = torch.randn(
+            (self.batch_size, 3, self.img_size, self.img_size))
         self.y = torch.randint(low=0,
                                high=self.n_categories + 1,
-                               size=(self.batch_size, 388, 388))
-        self.model = models.UNet(1, self.n_categories + 1)
+                               size=(self.batch_size, self.img_size,
+                                     self.img_size))
+        self.model = models.UNet(3, self.n_categories + 1)
 
     def test_forward(self):
         with torch.no_grad():
