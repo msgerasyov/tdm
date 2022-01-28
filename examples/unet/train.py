@@ -5,7 +5,7 @@ import torch
 import torch.nn as nn
 from tdm.datasets import OxfordPetDataset
 from tdm.models import UNet
-from tdm.metrics.segmentation import dice_score 
+from tdm.metrics.segmentation import iou_score 
 from torch.utils.data import DataLoader
 from torchvision import transforms
 from tqdm import tqdm
@@ -142,15 +142,15 @@ def main():
                                      train_dataloader,
                                      loss_fn,
                                      device,
-                                     metric=dice_score,
-                                     metric_name='Dice score')
+                                     metric=iou_score,
+                                     metric_name='IoU score')
         print('Average train loss:', train_loss)
         val_loss = validate(model,
                             val_dataloader,
                             loss_fn,
                             device,
-                            metric=dice_score,
-                            metric_name='Dice score')
+                            metric=iou_score,
+                            metric_name='IoU score')
         print('Average validation loss:', val_loss)
 
 

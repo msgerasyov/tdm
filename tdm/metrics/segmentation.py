@@ -15,12 +15,19 @@ def _soft_dice_score(y_true: torch.Tensor,
     return score
 
 
-def dice_score(y_true: torch.Tensor,
-               y_pred: torch.Tensor,
-               from_logits=True,
-               n_categories=1,
-               smooth=0.,
-               eps=1e-7):
+def _soft_iou_score(y_true: torch.Tensor, y_pred: torch.Tensor, eps=1e-7):
+    assert y_true.shape == y_pred.shape, "Shape mismatch"
+    intersection = torch.sum(y_true * y_pred, dim=-1)
+    union = torch.sum(y_true + y_pred, dim=-1) - intersection
+    score = torch.mean(intersection / union.clamp(min=eps))
+
+    return score
+
+
+def _preprocess_inputs(y_true: torch.Tensor,
+                       y_pred: torch.Tensor,
+                       from_logits=True,
+                       n_categories=1):
     assert y_pred.shape[0] == y_true.shape[0]
     N = y_true.shape[0]
     y_true = y_true.view(N, -1)
@@ -38,5 +45,26 @@ def dice_score(y_true: torch.Tensor,
             y_pred = y_pred.permute(0, 2, 1)[:, 1:, :]
         y_true = F.one_hot(y_true, n_categories + 1)
         y_true = y_true.permute(0, 2, 1)[:, 1:, :]
+    
+    return y_true, y_pred
+
+
+def dice_score(y_true: torch.Tensor,
+               y_pred: torch.Tensor,
+               from_logits=True,
+               n_categories=1,
+               smooth=0.,
+               eps=1e-7):
+    y_true, y_pred = _preprocess_inputs(y_true, y_pred, from_logits, n_categories)
 
     return _soft_dice_score(y_true, y_pred, smooth, eps)
+
+
+def iou_score(y_true: torch.Tensor,
+              y_pred: torch.Tensor,
+              from_logits=True,
+              n_categories=1,
+              eps=1e-7):
+    y_true, y_pred = _preprocess_inputs(y_true, y_pred, from_logits, n_categories)
+
+    return _soft_iou_score(y_true, y_pred, eps)
