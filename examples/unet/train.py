@@ -1,11 +1,13 @@
 import argparse
+from os.path import abspath, dirname, join
 
 import numpy as np
 import torch
 import torch.nn as nn
 from tdm.datasets import OxfordPetDataset
+from tdm.metrics.segmentation import iou_score
 from tdm.models import UNet
-from tdm.metrics.segmentation import iou_score 
+from tdm.transforms import segmentation as S
 from torch.utils.data import DataLoader
 from torchvision import transforms
 from tqdm import tqdm
@@ -16,7 +18,7 @@ def parse_args():
         description='Train UNet on Oxford-IIIT Pet Dataset')
     parser.add_argument('--batch-size', default=8, metavar='BS', type=int)
     parser.add_argument('--data-dir',
-                        default='./data/',
+                        default=join(dirname(abspath(__file__)), 'data/'),
                         metavar='DIR',
                         help='Directory to store the dataset')
     parser.add_argument('--n-epochs',
@@ -89,37 +91,37 @@ def validate(model, loader, loss_fn, device, metric=None, metric_name=None):
     return np.mean(losses)
 
 
-class MaskToTensor(object):
-    def __call__(self, mask):
-        mask = torch.as_tensor(np.array(mask), dtype=torch.float)
-        return mask
-
-
 class PreprocessMask(object):
-    def __call__(self, mask: torch.Tensor):
+    def __call__(self, image, mask: torch.Tensor):
+        mask = mask.float()
         mask[mask == 2.0] = 0.0
         mask[mask == 3.0] = 1.0
-        return mask
+        return image, mask
 
 
 def main():
     args = parse_args()
-    image_transform = transforms.Compose(
-        [transforms.Resize((256, 256)),
-         transforms.ToTensor()])
-    target_transform = transforms.Compose([
-        transforms.Resize((256, 256),
-                          interpolation=transforms.InterpolationMode.NEAREST),
-        MaskToTensor(),
-        PreprocessMask()
+    train_transform = S.Compose([
+        S.Resize((256, 256)),
+        S.RandomAffine(15, translate=(0.2, 0.2), scale=(0.75, 1.25)),
+        S.ColorJitter(0.3, 0.3),
+        S.ToTensor(),
+        S.Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225)),
+        PreprocessMask(),
+    ])
+    val_transform = S.Compose([
+        S.Resize((256, 256)),
+        S.ToTensor(),
+        S.Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225)),
+        PreprocessMask(),
     ])
     dataset = OxfordPetDataset(root=args.data_dir,
                                download=True,
-                               transform=image_transform,
-                               target_transform=target_transform)
+                               transform=train_transform)
     val_size = int(len(dataset) * 0.25)
     train_dataset, val_dataset = torch.utils.data.random_split(
         dataset, lengths=(len(dataset) - val_size, val_size))
+    val_dataset.transform = val_transform
     train_dataloader = DataLoader(train_dataset,
                                   batch_size=args.batch_size,
                                   shuffle=True,

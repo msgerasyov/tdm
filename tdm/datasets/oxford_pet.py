@@ -18,14 +18,9 @@ class OxfordPetDataset(Dataset):
     _masks_url = "https://www.robots.ox.ac.uk/~vgg/data/pets/data/annotations.tar.gz"
     _masks_md5 = "95a8c909bbe2e81eed6a22bccdf3f68f"
 
-    def __init__(self,
-                 root,
-                 transform=None,
-                 target_transform=None,
-                 download=True):
+    def __init__(self, root, transform=None, download=True):
         self.root = root
         self.transform = transform
-        self.target_transform = target_transform
         self.download = download
         self._imgs_tar_path = os.path.join(self.root,
                                            self._imgs_url.split('/')[-1])
@@ -44,14 +39,12 @@ class OxfordPetDataset(Dataset):
         for fname in os.listdir(self._imgs_path):
             name, ext = os.path.splitext(fname)
             try:
-                img = Image.open(os.path.join(self._imgs_path,
-                                              fname)).convert('RGB')
+                with Image.open(os.path.join(self._imgs_path, fname)) as image:
+                    image.convert('RGB')
 
-                mask = Image.open(os.path.join(self._masks_path,
-                                               name + '.png')).convert('I')
-
-                img.close()
-                mask.close()
+                with Image.open(os.path.join(self._masks_path,
+                                             name + '.png')) as mask:
+                    mask.convert('I')
 
             except UnidentifiedImageError:
                 continue
@@ -68,9 +61,7 @@ class OxfordPetDataset(Dataset):
         mask = Image.open(os.path.join(self._masks_path,
                                        fname + '.png')).convert('I')
         if self.transform:
-            img = self.transform(img)
-        if self.target_transform:
-            mask = self.target_transform(mask)
+            img, mask = self.transform(img, mask)
 
         return img, mask
 

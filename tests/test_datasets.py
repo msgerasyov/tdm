@@ -1,22 +1,17 @@
 import os
+from os.path import abspath, dirname, join
 import unittest
 
 import numpy as np
 import torch
 from tdm import datasets
+from tdm.transforms import segmentation as S
 from torch.utils.data import DataLoader
-from torchvision import transforms
-
-
-class MaskToTensor(object):
-    def __call__(self, mask):
-        mask = torch.as_tensor(np.array(mask), dtype=torch.long)
-        return mask
 
 
 class TestOxfordPetDataset(unittest.TestCase):
     def setUp(self):
-        self.root_dir = './data/'
+        self.root_dir = join(dirname(abspath(__file__)), 'data/')
         # Make sure self.root_dir is empty or doesn't exist.
         # It's going to be wiped after the tests.
         assert os.path.isdir(self.root_dir) and len(os.listdir(
@@ -24,22 +19,15 @@ class TestOxfordPetDataset(unittest.TestCase):
                 self.root_dir), 'Root directory contains files'
         self.img_size = 256
         self.batch_size = 4
-        self.img_transform = transforms.Compose([
-            transforms.Resize((self.img_size, self.img_size)),
-            transforms.ToTensor()
-        ])
-        self.target_transform = transforms.Compose([
-            transforms.Resize(
-                (self.img_size, self.img_size),
-                interpolation=transforms.InterpolationMode.NEAREST),
-            MaskToTensor()
-        ])
+        self.transform = S.Compose(
+            [S.Resize((self.img_size, self.img_size)),
+             S.ToTensor()])
+
 
     def test_loading_data(self):
         dataset = datasets.OxfordPetDataset(
             root=self.root_dir,
-            transform=self.img_transform,
-            target_transform=self.target_transform,
+            transform=self.transform,
             download=True)
         dataloader = DataLoader(dataset=dataset,
                                 batch_size=self.batch_size,
@@ -70,7 +58,7 @@ class TestOxfordPetDataset(unittest.TestCase):
                 os.remove(os.path.join(root, name))
             for name in dirs:
                 os.rmdir(os.path.join(root, name))
-        os.rmdir('./data/')
+        os.rmdir(self.root_dir)
 
 
 if __name__ == "__main__":
