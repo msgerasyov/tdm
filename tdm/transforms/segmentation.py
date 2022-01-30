@@ -1,6 +1,8 @@
+import numpy as np
 import torch
 import torchvision.transforms as T
 import torchvision.transforms.functional as F
+from tdm import transforms
 from torchvision.transforms import InterpolationMode
 
 
@@ -28,7 +30,7 @@ class Resize:
         return image, mask
 
 
-class RandomAffine:
+class RandomAffine(T.RandomAffine):
     def __init__(self,
                  degrees,
                  translate=None,
@@ -36,24 +38,24 @@ class RandomAffine:
                  shear=None,
                  interpolation=InterpolationMode.NEAREST,
                  fill=0):
-        self.degrees = degrees
-        self.translate = translate
-        self.scale = scale
-        self.shear = shear
-        self.interpolation = interpolation
-        self.fill = fill
+        super().__init__(degrees, translate, scale, shear, interpolation, fill)
 
     def __call__(self, image, mask):
         if isinstance(image, torch.Tensor):
             if isinstance(self.fill, (int, float)):
-                fill = [float(self.fill)] * F.get_image_num_channels(image)
+                self.fill = [float(self.fill)] * F._get_image_num_channels(image)
             else:
-                fill = [float(f) for f in self.fill]
+                self.fill = [float(f) for f in self.fill]
         img_size = F._get_image_size(image)
         params = T.RandomAffine.get_params(self.degrees, self.translate,
-                                         self.scale, self.shear, img_size)
-        image = F.affine(image, *params, interpolation=self.interpolation, fill=fill)
-        mask = F.affine(image, *params, interpolation=InterpolationMode.NEAREST)
+                                           self.scale, self.shear, img_size)
+        image = F.affine(image,
+                         *params,
+                         interpolation=self.interpolation,
+                         fill=self.fill)
+        mask = F.affine(mask,
+                        *params,
+                        interpolation=InterpolationMode.NEAREST)
 
         return image, mask
 
@@ -92,6 +94,6 @@ class Normalize:
 class ToTensor:
     def __call__(self, image, mask):
         image = F.to_tensor(image)
-        mask = torch.as_tensor(mask, dtype=torch.long)
+        mask = torch.as_tensor(np.array(mask), dtype=torch.long)
 
         return image, mask
