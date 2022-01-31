@@ -16,13 +16,17 @@ from tqdm import tqdm
 def parse_args():
     parser = argparse.ArgumentParser(
         description='Train UNet on Oxford-IIIT Pet Dataset')
-    parser.add_argument('--batch-size', default=8, metavar='BS', type=int)
+    parser.add_argument('--batch-size', default=16, metavar='BS', type=int)
     parser.add_argument('--data-dir',
                         default=join(dirname(abspath(__file__)), 'data/'),
-                        metavar='DIR',
+                        metavar='DDIR',
                         help='Directory to store the dataset')
+    parser.add_argument('--save-dir',
+                        default=join(dirname(abspath(__file__)), 'saves/'),
+                        metavar='SDIR',
+                        help='Directory to save trained models')
     parser.add_argument('--n-epochs',
-                        default=15,
+                        default=20,
                         metavar='NEP',
                         type=int,
                         help='Number of training epochs')
@@ -138,7 +142,7 @@ def main():
     device = 'cuda' if torch.cuda.is_available() and args.cuda else 'cpu'
     model.to(device)
     for epoch in range(args.n_epochs):
-        print(f"Epoch: {epoch}/{args.n_epochs-1}")
+        print(f"Epoch: {epoch+1}/{args.n_epochs}")
         train_loss = train_one_epoch(model,
                                      opt,
                                      train_dataloader,
