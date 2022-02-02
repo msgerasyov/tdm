@@ -4,7 +4,13 @@ class MetricMeter:
         self.values = []
 
     def update(self, metric_value):
-        pass
+        self.values.append(metric_value)
 
     def reset(self):
-        pass
+        self.values = []
+
+    def get_value(self):
+        return sum(self.values) / len(self.values)
+    
+    def __str__(self) -> str:
+        return f'Average {self.metric_name}: {self.get_value():.4f}'

@@ -1,4 +1,5 @@
 import argparse
+import random
 from os.path import abspath, dirname, join
 
 import numpy as np
@@ -8,9 +9,16 @@ from tdm.datasets import OxfordPetDataset
 from tdm.metrics.segmentation import iou_score
 from tdm.models import UNet
 from tdm.transforms import segmentation as S
+from tdm.utils import MetricMeter, metric_meter
 from torch.utils.data import DataLoader
 from torchvision import transforms
 from tqdm import tqdm
+
+
+def fix_seed(seed):
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
 
 
 def parse_args():
@@ -39,6 +47,11 @@ def parse_args():
                         action='store_false',
                         dest='cuda',
                         help='Disable GPU during training')
+    parser.add_argument('--seed',
+                        default=1,
+                        metavar='SEED',
+                        type=int,
+                        help='Seed for random number generators')
 
     return parser.parse_args()
 
@@ -49,7 +62,7 @@ def train_one_epoch(model,
                     loss_fn,
                     device,
                     metric=None,
-                    metric_name=None):
+                    metric_meter=None):
     model.train()
     losses = []
     progress = tqdm(enumerate(loader), total=len(loader))
@@ -65,15 +78,17 @@ def train_one_epoch(model,
         if metric is not None:
             metric_value = metric(masks, out,
                                   from_logits=True).cpu().data.numpy()
+            metric_meter.update(metric_value)
             progress.set_description(
-                f"Train loss: {loss:.4f}, {metric_name}: {metric_value:.4f}")
+                f"Train loss: {loss:.4f}, {metric_meter.metric_name}: {metric_value:.4f}"
+            )
         else:
             progress.set_description(f"Train loss: {loss:.4f}")
 
     return np.mean(losses)
 
 
-def validate(model, loader, loss_fn, device, metric=None, metric_name=None):
+def validate(model, loader, loss_fn, device, metric=None, metric_meter=None):
     model.eval()
     losses = []
     progress = tqdm(enumerate(loader), total=len(loader))
@@ -88,7 +103,8 @@ def validate(model, loader, loss_fn, device, metric=None, metric_name=None):
                 metric_value = metric(masks, out,
                                       from_logits=True).cpu().data.numpy()
                 progress.set_description(
-                    f"Val loss: {loss:.4f}, {metric_name}: {metric_value:.4f}")
+                    f"Val loss: {loss:.4f}, {metric_meter.metric_name}: {metric_value:.4f}"
+                )
             else:
                 progress.set_description(f"Val loss: {loss:.4f}")
 
@@ -105,6 +121,7 @@ class PreprocessMask(object):
 
 def main():
     args = parse_args()
+    fix_seed(args.seed)
     train_transform = S.Compose([
         S.Resize((256, 256)),
         S.RandomAffine(15, translate=(0.2, 0.2), scale=(0.75, 1.25)),
@@ -141,6 +158,7 @@ def main():
     opt = torch.optim.Adam(model.parameters(), lr=args.lr)
     device = 'cuda' if torch.cuda.is_available() and args.cuda else 'cpu'
     model.to(device)
+    metric_meter = MetricMeter('IoU score')
     for epoch in range(args.n_epochs):
         print(f"Epoch: {epoch+1}/{args.n_epochs}")
         train_loss = train_one_epoch(model,
@@ -149,15 +167,19 @@ def main():
                                      loss_fn,
                                      device,
                                      metric=iou_score,
-                                     metric_name='IoU score')
+                                     metric_meter=metric_meter)
         print('Average train loss:', train_loss)
+        print(metric_meter)
+        metric_meter.reset()
         val_loss = validate(model,
                             val_dataloader,
                             loss_fn,
                             device,
                             metric=iou_score,
-                            metric_name='IoU score')
+                            metric_meter=metric_meter)
         print('Average validation loss:', val_loss)
+        print(metric_meter)
+        metric_meter.reset()
 
 
 if __name__ == '__main__':
