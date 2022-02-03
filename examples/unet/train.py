@@ -102,6 +102,7 @@ def validate(model, loader, loss_fn, device, metric=None, metric_meter=None):
             if metric is not None:
                 metric_value = metric(masks, out,
                                       from_logits=True).cpu().data.numpy()
+                metric_meter.update(metric_value)
                 progress.set_description(
                     f"Val loss: {loss:.4f}, {metric_meter.metric_name}: {metric_value:.4f}"
                 )
