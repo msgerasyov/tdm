@@ -9,7 +9,7 @@ from tdm.datasets import OxfordPetDataset
 from tdm.metrics.segmentation import iou_score
 from tdm.models import UNet
 from tdm.transforms import segmentation as S
-from tdm.utils import MetricMeter, metric_meter
+from tdm.utils import MetricMeter
 from torch.utils.data import DataLoader
 from torchvision import transforms
 from tqdm import tqdm
