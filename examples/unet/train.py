@@ -9,7 +9,7 @@ from tdm.datasets import OxfordPetDataset
 from tdm.metrics.segmentation import iou_score
 from tdm.models import UNet
 from tdm.transforms import segmentation as S
-from tdm.utils import MetricMeter
+from tdm.utils import MetricMeter, ModelSaver, model_saver
 from torch.utils.data import DataLoader
 from torchvision import transforms
 from tqdm import tqdm
@@ -160,6 +160,7 @@ def main():
     device = 'cuda' if torch.cuda.is_available() and args.cuda else 'cpu'
     model.to(device)
     metric_meter = MetricMeter('IoU score')
+    model_saver = ModelSaver(args.save_dir, mode='max')
     for epoch in range(args.n_epochs):
         print(f"Epoch: {epoch+1}/{args.n_epochs}")
         train_loss = train_one_epoch(model,
@@ -180,6 +181,7 @@ def main():
                             metric_meter=metric_meter)
         print('Average validation loss:', val_loss)
         print(metric_meter)
+        model_saver.update(model, metric_meter.get_value())
         metric_meter.reset()
 
 
