@@ -35,6 +35,15 @@ class ExpansiveBlock(nn.Module):
 
 
 class UNet(nn.Module):
+    """Implements a modified version of UNet model
+
+    :param in_channels: Number of channels in the input image
+    :type in_channels: int
+    :param out_channels: Number of channels produced by the model
+    :type out_channels: int
+    :param hid_size:
+    type hid_size: int, optional
+    """
     def __init__(self, in_channels, out_channels, hid_size=64):
         super().__init__()
         self.cblock0 = ConvBlock(in_channels, hid_size)
