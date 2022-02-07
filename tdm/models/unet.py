@@ -41,7 +41,7 @@ class UNet(nn.Module):
     :type in_channels: int
     :param out_channels: Number of channels produced by the model
     :type out_channels: int
-    :param hid_size:
+    :param hid_size: Number of channels at the output of the first conv block
     type hid_size: int, optional
     """
     def __init__(self, in_channels, out_channels, hid_size=64):
